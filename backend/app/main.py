@@ -6,6 +6,7 @@ from fastapi.staticfiles import StaticFiles
 
 from app.routes import router
 from app.ws import router as ws_router
+from app.proxy import router as proxy_router
 
 app = FastAPI(title="injester.lol", version="0.1.0")
 
@@ -18,6 +19,7 @@ app.add_middleware(
 )
 
 app.include_router(router, prefix="/api")
+app.include_router(proxy_router, prefix="/api")
 app.include_router(ws_router)
 
 # Serve generated optimized HTML pages

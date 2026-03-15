@@ -8,13 +8,13 @@ Works on both raw proxy sites (poorly) and optimized HTML (well).
 import asyncio
 import base64
 import json
-from typing import Any
+from typing import Any, Optional
 
 import openai
 from playwright.async_api import Page, async_playwright
 
 from app.config import NEBIUS_API_KEY, NEBIUS_BASE_URL, NEBIUS_MODEL
-from app.agent_tasks import TASK_SETS
+from app.agent_tasks import TASK_SETS, get_tasks
 
 nebius_client = openai.AsyncOpenAI(
     api_key=NEBIUS_API_KEY,
@@ -169,7 +169,9 @@ async def run_agent(
     url: str,
     site_type: str = "united",
     headless: bool = False,
-    on_event: EventCallback | None = None,
+    on_event: Optional[EventCallback] = None,
+    custom_tasks: Optional[list] = None,
+    trip_details: Optional[dict] = None,
 ) -> dict:
     """Run the full booking agent on a URL.
 
@@ -178,11 +180,18 @@ async def run_agent(
         site_type: "united" or "airbnb" — determines task set.
         headless: If False, browser is visible (for demo streaming).
         on_event: Async callback for streaming events to WebSocket.
+        custom_tasks: Optional list of task dicts. If provided, overrides site_type lookup.
+        trip_details: Optional dict with trip params (dates, airports, guests).
 
     Returns:
         Dict with task results, total score, and screenshots.
     """
-    tasks = TASK_SETS.get(site_type, TASK_SETS["united"])
+    if custom_tasks:
+        tasks = custom_tasks
+    elif trip_details:
+        tasks = get_tasks(site_type, trip_details) or TASK_SETS.get(site_type, TASK_SETS["united"])
+    else:
+        tasks = TASK_SETS.get(site_type, TASK_SETS["united"])
 
     async def emit(event: dict):
         if on_event:

@@ -19,6 +19,9 @@ build/
 .idea/
 *.swp
 
+# Generated runtime files
+backend/generated/
+
 # OS
 .DS_Store
 Thumbs.db

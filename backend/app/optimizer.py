@@ -1,6 +1,7 @@
 """Nebius AI optimization layer — the architect that rebuilds the room."""
 
 import json
+from typing import Optional
 
 import openai
 
@@ -27,7 +28,7 @@ Return valid JSON with these fields:
 Return ONLY valid JSON, no markdown fencing."""
 
 
-def optimize_content(clean_text: str, prompt_template: str | None = None) -> dict:
+def optimize_content(clean_text: str, prompt_template: Optional[str] = None) -> dict:
     """Restructure clean text into agent-optimized JSON using Nebius."""
     template = prompt_template or DEFAULT_RESTRUCTURE_PROMPT
     prompt = template.format(content=clean_text[:8000])  # token budget guard

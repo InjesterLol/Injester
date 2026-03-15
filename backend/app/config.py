@@ -8,25 +8,27 @@ NEBIUS_API_KEY = os.getenv("NEBIUS_API_KEY")
 NEBIUS_BASE_URL = os.getenv("NEBIUS_BASE_URL", "https://api.studio.nebius.ai/v1/")
 NEBIUS_MODEL = os.getenv("NEBIUS_MODEL", "meta-llama/Meta-Llama-3.1-70B-Instruct")
 
-# Vishal's proxy sites — direct fetch, no Tavily needed
-PROXY_UNITED_URL = os.getenv("PROXY_UNITED_URL", "http://localhost:3001")
-PROXY_AIRBNB_URL = os.getenv("PROXY_AIRBNB_URL", "http://localhost:3002")
+# Proxy sites — use env vars if Vishal's proxies are running, else real URLs
+PROXY_UNITED_URL = os.getenv("PROXY_UNITED_URL", "https://www.united.com/en/us")
+PROXY_AIRBNB_URL = os.getenv("PROXY_AIRBNB_URL", "https://www.airbnb.com/rooms/5769778")
 
 # Demo benchmark questions
+# These must be answerable from the EXTRACTED content (not live search results).
+# Focus on page structure and information that exists on the page itself.
 BENCHMARK_QUESTIONS = {
     "united": [
-        "What is the cheapest flight from SFO to NYC tomorrow?",
-        "How long is the shortest flight?",
-        "Which flights are nonstop?",
-        "What is the baggage fee?",
-        "How do I book for 2 passengers?",
+        "What types of trips can be booked (one-way, round trip, multi-city)?",
+        "What travel classes or cabin types are available?",
+        "What information fields are needed to search for flights (origin, destination, dates)?",
+        "What loyalty or rewards program does the airline offer?",
+        "What other services are available besides flight booking (hotels, cars, packages)?",
     ],
     "airbnb": [
-        "What is the nightly price?",
-        "How many guests does this fit?",
-        "What is the cancellation policy?",
-        "Is wifi included?",
-        "What are the check-in instructions?",
+        "What is the nightly price for this listing?",
+        "What is the maximum number of guests this listing accommodates?",
+        "What are the key amenities (wifi, parking, kitchen, etc.)?",
+        "What type of property is this (entire home, private room, etc.)?",
+        "Where is this listing located (city, neighborhood)?",
     ],
 }
 

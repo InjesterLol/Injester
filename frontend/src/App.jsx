@@ -1,203 +1,273 @@
-import { useState, useCallback } from 'react'
-import URLInput from './components/URLInput'
-import RawPanel from './components/RawPanel'
-import OptimizedPanel from './components/OptimizedPanel'
-import ScorePanel from './components/ScorePanel'
-import AgentStream from './components/AgentStream'
+import { useState, useCallback, useRef } from 'react'
+import HeroHeader from './components/HeroHeader'
+import ProblemSection from './components/ProblemSection'
+import ProcessTimeline from './components/ProcessTimeline'
+import ComparisonSection from './components/ComparisonSection'
+import AgentSection from './components/AgentSection'
+import ScoreReveal from './components/ScoreReveal'
+
+/**
+ * Phase state machine:
+ * idle → extracting → optimizing → generation_complete → [agent_running_raw → agent_running_optimized →] complete
+ *
+ * For "general" sites (no booking objective), agent phases are skipped.
+ */
+
+// Known booking site types that get the full agent flow
+const AGENT_SITE_TYPES = new Set(['united', 'airbnb'])
 
 function App() {
-  const [loading, setLoading] = useState(false)
-  const [rawUrl, setRawUrl] = useState(null)
-  const [optimizedUrl, setOptimizedUrl] = useState(null)
-  const [rawScore, setRawScore] = useState(null)
-  const [optimizedScore, setOptimizedScore] = useState(null)
-  const [loopLog, setLoopLog] = useState(null)
-  const [agentRawScore, setAgentRawScore] = useState(null)
-  const [agentOptimizedScore, setAgentOptimizedScore] = useState(null)
-  const [taskResults, setTaskResults] = useState(null)
-  const [activeTaskIndex, setActiveTaskIndex] = useState(-1)
-  const [agentActive, setAgentActive] = useState(false)
-  const [status, setStatus] = useState('Ready')
+  const [phase, setPhase] = useState('idle')
+  const [mode, setMode] = useState('full') // 'full' or 'optimize-only'
+  const wsRef = useRef(null)
 
-  const handleIngest = useCallback(async (url, siteType) => {
-    setLoading(true)
-    setStatus('Extracting + optimizing...')
-    setRawUrl(url)
+  // Data state
+  const [rawUrl, setRawUrl] = useState(null)
+  const [rawScreenshot, setRawScreenshot] = useState(null)
+  const [optimizedUrl, setOptimizedUrl] = useState(null)
+  const [loopLog, setLoopLog] = useState(null)
+  const [rawAgentScore, setRawAgentScore] = useState(null)
+  const [optimizedAgentScore, setOptimizedAgentScore] = useState(null)
+  const [taskResults, setTaskResults] = useState(null)
+  const [totalTasks, setTotalTasks] = useState(5)
+  const [tokenReduction, setTokenReduction] = useState(null)
+  const [iterationsUsed, setIterationsUsed] = useState(null)
+  const [stats, setStats] = useState(null)
+
+  const loading = phase !== 'idle' && phase !== 'complete'
+
+  // Section visibility
+  const showProblem = phase !== 'idle'
+  const showTimeline = ['optimizing', 'generation_complete', 'agent_running_raw', 'agent_running_optimized', 'complete'].includes(phase)
+  const showComparison = ['generation_complete', 'agent_running_raw', 'agent_running_optimized', 'complete'].includes(phase)
+  const showAgent = mode === 'full' && ['agent_running_raw', 'agent_running_optimized', 'complete'].includes(phase)
+  const showScore = phase === 'complete'
+
+  const resetState = useCallback(() => {
+    setPhase('idle')
+    setMode('full')
+    setRawUrl(null)
+    setRawScreenshot(null)
     setOptimizedUrl(null)
     setLoopLog(null)
-    setRawScore(null)
-    setOptimizedScore(null)
-    setAgentRawScore(null)
-    setAgentOptimizedScore(null)
+    setRawAgentScore(null)
+    setOptimizedAgentScore(null)
     setTaskResults(null)
+    setTotalTasks(5)
+    setTokenReduction(null)
+    setIterationsUsed(null)
+    setStats(null)
+  }, [])
+
+  const fetchScreenshot = useCallback(async (url) => {
+    try {
+      const res = await fetch('/api/screenshot', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url }),
+      })
+      const data = await res.json()
+      if (res.ok && data.screenshot) {
+        setRawScreenshot(data.screenshot)
+      }
+    } catch (err) {
+      console.warn('Screenshot capture failed:', err)
+    }
+  }, [])
+
+  const handleIngest = useCallback(async (url, siteType, tripDetails = {}, maxIterations = 3, objective = null) => {
+    resetState()
+
+    const isBookingSite = AGENT_SITE_TYPES.has(siteType)
+    setMode(isBookingSite ? 'full' : 'optimize-only')
+    setPhase('extracting')
+    setRawUrl(url)
+
+    fetchScreenshot(url)
 
     try {
       // Step 1: Generate optimized HTML (includes Karpathy loop)
+      setPhase('optimizing')
       const genRes = await fetch('/api/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ url, site_type: siteType }),
+        body: JSON.stringify({ url, site_type: siteType, trip_details: tripDetails, max_iterations: maxIterations, objective }),
       })
       const genData = await genRes.json()
-
       if (!genRes.ok) throw new Error(genData.detail || 'Generation failed')
 
       setOptimizedUrl(genData.generated_url)
       setLoopLog(genData.loop_log)
-      setStatus(`Optimized! Karpathy loop: ${genData.best_score} in ${genData.karpathy_iterations} iterations`)
+      setIterationsUsed(genData.karpathy_iterations)
+      setStats(genData.stats || null)
+      if (genData.stats?.content_reduction_pct != null) {
+        setTokenReduction(genData.stats.content_reduction_pct)
+      }
+      setPhase('generation_complete')
 
-      // Step 2: Run benchmark
-      setStatus('Running benchmark...')
-      const benchRes = await fetch('/api/benchmark', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ url, site_type: siteType }),
-      })
-      const benchData = await benchRes.json()
-
-      if (benchRes.ok) {
-        setRawScore(`${benchData.raw_benchmark.score}/${benchData.raw_benchmark.total}`)
-        setOptimizedScore(`${benchData.optimized_benchmark.score}/${benchData.optimized_benchmark.total}`)
+      // For non-booking sites, skip agent — go straight to results
+      if (!isBookingSite) {
+        setPhase('complete')
+        return
       }
 
-      setStatus('Ready — click "Run Agent" to test booking')
-    } catch (err) {
-      setStatus(`Error: ${err.message}`)
-    } finally {
-      setLoading(false)
-    }
-  }, [])
+      // Step 2: Run agent on raw site
+      const customTasks = genData.agent_tasks || null
 
-  const handleDemo = useCallback(async (siteType) => {
-    setLoading(true)
-    setAgentActive(true)
-    setStatus('Running full demo...')
-    setRawUrl(null)
-    setOptimizedUrl(null)
-    setLoopLog(null)
-    setRawScore(null)
-    setOptimizedScore(null)
-    setAgentRawScore(null)
-    setAgentOptimizedScore(null)
-    setTaskResults(null)
-
-    try {
-      const res = await fetch('/api/demo', {
+      setPhase('agent_running_raw')
+      const rawAgentRes = await fetch('/api/run-agent', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ site_type: siteType, max_iterations: 3 }),
+        body: JSON.stringify({ url, site_type: siteType, custom_tasks: customTasks, trip_details: tripDetails }),
       })
-      const data = await res.json()
+      const rawAgentData = await rawAgentRes.json()
+      setRawAgentScore(rawAgentData.tasks_completed ?? rawAgentData.score)
+      setTotalTasks(rawAgentData.total_tasks || 5)
 
-      if (!res.ok) throw new Error(data.detail || 'Demo failed')
+      // Step 3: Run agent on optimized site
+      setPhase('agent_running_optimized')
+      const optAgentRes = await fetch('/api/run-agent', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          url: `${window.location.origin}${genData.generated_url}`,
+          site_type: siteType,
+          custom_tasks: customTasks,
+          trip_details: tripDetails,
+        }),
+      })
+      const optAgentData = await optAgentRes.json()
+      setOptimizedAgentScore(optAgentData.tasks_completed ?? optAgentData.score)
+      setTaskResults(optAgentData.task_results)
+
+      setPhase('complete')
+    } catch (err) {
+      console.error('Ingest error:', err)
+      setPhase('complete')
+    }
+  }, [fetchScreenshot, resetState])
+
+  // Connect WebSocket for real-time phase updates during demo
+  const connectDemoWs = useCallback(() => {
+    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
+    const ws = new WebSocket(`${protocol}//${window.location.host}/ws/agent`)
+    wsRef.current = ws
+
+    ws.onmessage = (event) => {
+      const data = JSON.parse(event.data)
+      if (data.type === 'demo_phase') {
+        if (['extracting', 'optimizing', 'generation_complete', 'agent_running_raw', 'agent_running_optimized', 'complete'].includes(data.phase)) {
+          setPhase(data.phase)
+        }
+        if (data.proxy_url) {
+          setRawUrl(data.proxy_url)
+          fetchScreenshot(data.proxy_url)
+        }
+        if (data.generated_url) setOptimizedUrl(data.generated_url)
+        if (data.phase === 'loop_entry' && data.loop_entry) {
+          setLoopLog(prev => [...(prev || []), data.loop_entry])
+        }
+      }
+    }
+
+    return ws
+  }, [fetchScreenshot])
+
+  const handleDemo = useCallback(async (siteType, tripDetails = {}, maxIterations = 3) => {
+    resetState()
+    setMode('full') // Demo always runs full agent flow
+    setPhase('extracting')
+
+    const ws = connectDemoWs()
+
+    try {
+      const demoRes = await fetch('/api/demo', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ site_type: siteType, max_iterations: maxIterations, trip_details: tripDetails }),
+      })
+      const data = await demoRes.json()
+      if (!demoRes.ok) throw new Error(data.detail || 'Demo failed')
 
       setRawUrl(data.proxy_url)
       setOptimizedUrl(data.generated_url)
       setLoopLog(data.karpathy?.log)
-      setAgentRawScore(data.raw_agent?.score)
-      setAgentOptimizedScore(data.optimized_agent?.score)
+      setIterationsUsed(data.karpathy?.iterations)
+      setRawAgentScore(data.raw_agent?.tasks_completed ?? data.raw_agent?.score)
+      setOptimizedAgentScore(data.optimized_agent?.tasks_completed ?? data.optimized_agent?.score)
+      setTotalTasks(data.optimized_agent?.total_tasks || 5)
 
-      // Build task results from agent data
-      const tasks = data.optimized_agent?.task_results || []
-      setTaskResults(tasks)
-
-      setStatus(`Demo complete! Raw: ${data.raw_agent?.score} → Optimized: ${data.optimized_agent?.score}`)
-    } catch (err) {
-      setStatus(`Error: ${err.message}`)
-    } finally {
-      setLoading(false)
-      setAgentActive(false)
-    }
-  }, [])
-
-  const handleRunAgent = useCallback(async () => {
-    if (!rawUrl) return
-    setAgentActive(true)
-    setStatus('Running agent on raw site...')
-
-    try {
-      // Run on raw site
-      const rawRes = await fetch('/api/run-agent', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ url: rawUrl, site_type: 'united' }),
-      })
-      const rawData = await rawRes.json()
-      setAgentRawScore(rawData.score)
-
-      // Run on optimized site
-      if (optimizedUrl) {
-        setStatus('Running agent on optimized site...')
-        const optRes = await fetch('/api/run-agent', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            url: `${window.location.origin}${optimizedUrl}`,
-            site_type: 'united',
-          }),
-        })
-        const optData = await optRes.json()
-        setAgentOptimizedScore(optData.score)
-        setTaskResults(optData.task_results)
+      if (data.optimized_agent?.task_results) {
+        setTaskResults(data.optimized_agent.task_results)
       }
 
-      setStatus('Agent runs complete!')
+      setPhase('complete')
     } catch (err) {
-      setStatus(`Agent error: ${err.message}`)
+      console.error('Demo error:', err)
+      setPhase('complete')
     } finally {
-      setAgentActive(false)
+      ws.close()
+      wsRef.current = null
     }
-  }, [rawUrl, optimizedUrl])
+  }, [connectDemoWs, resetState])
 
   return (
-    <>
-      <div className="header">
-        <h1>injester<span>.lol</span></h1>
-        <div className="header-controls">
-          {optimizedUrl && (
-            <button className="btn btn-agent" onClick={handleRunAgent} disabled={loading || agentActive}>
-              {agentActive ? 'Agent Running...' : 'Run Agent'}
-            </button>
-          )}
-        </div>
-      </div>
+    <div className="app">
+      <HeroHeader
+        phase={phase}
+        onIngest={handleIngest}
+        onDemo={handleDemo}
+        onReset={resetState}
+        loading={loading}
+      />
 
-      <URLInput onIngest={handleIngest} onDemo={handleDemo} loading={loading} />
+      <div className="story-flow">
+        <ProblemSection
+          rawScreenshot={rawScreenshot}
+          rawAgentScore={rawAgentScore}
+          visible={showProblem}
+          optimizeOnly={mode === 'optimize-only'}
+        />
 
-      <div className="panels">
-        <RawPanel url={rawUrl} />
-        <OptimizedPanel url={optimizedUrl} loading={loading} />
-        <div className="panel">
-          <div className="panel-header">
-            <h2>Panel 3 — Results</h2>
-            <span className="panel-label label-score">Proof it works</span>
+        <ProcessTimeline
+          loopLog={loopLog}
+          visible={showTimeline}
+        />
+
+        <ComparisonSection
+          rawScreenshot={rawScreenshot}
+          optimizedUrl={optimizedUrl}
+          visible={showComparison}
+        />
+
+        {showAgent && (
+          <AgentSection
+            visible={showAgent}
+            active={phase === 'agent_running_raw' || phase === 'agent_running_optimized'}
+            taskResults={taskResults}
+          />
+        )}
+
+        <ScoreReveal
+          rawScore={rawAgentScore}
+          optimizedScore={optimizedAgentScore}
+          totalTasks={totalTasks}
+          tokenReduction={tokenReduction}
+          iterationsUsed={iterationsUsed}
+          loopLog={loopLog}
+          stats={stats}
+          visible={showScore}
+          optimizeOnly={mode === 'optimize-only'}
+        />
+
+        {phase === 'idle' && (
+          <div className="idle-hero">
+            <h2>Make the web agent-ready</h2>
+            <p>Enter a URL or click Demo to see the transformation</p>
           </div>
-          <div className="panel-content" style={{ overflow: 'auto' }}>
-            <ScorePanel
-              rawScore={rawScore}
-              optimizedScore={optimizedScore}
-              loopLog={loopLog}
-              agentRawScore={agentRawScore}
-              agentOptimizedScore={agentOptimizedScore}
-              taskResults={taskResults}
-              activeTaskIndex={activeTaskIndex}
-              loading={loading}
-            />
-            {agentActive && <AgentStream active={agentActive} />}
-          </div>
-        </div>
+        )}
       </div>
-
-      <div className="status-bar">
-        <div className="status-item">
-          <span className={`status-dot ${loading || agentActive ? 'loading' : 'connected'}`} />
-          <span>{status}</span>
-        </div>
-        <div className="status-item">
-          <span style={{ color: 'var(--text-secondary)' }}>Powered by Nebius + Tavily</span>
-        </div>
-      </div>
-    </>
+    </div>
   )
 }
 
