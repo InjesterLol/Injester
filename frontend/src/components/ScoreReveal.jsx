@@ -9,6 +9,22 @@ function formatChars(n) {
   return String(n)
 }
 
+function formatTokens(n) {
+  if (n >= 1000000) return `${(n / 1000000).toFixed(1)}M`
+  if (n >= 1000) return `${(n / 1000).toFixed(1)}k`
+  return String(n)
+}
+
+// Rough estimate: 1 token ≈ 4 characters for English text
+function charsToTokens(chars) {
+  return Math.round(chars / 4)
+}
+
+function estimateCost(tokens) {
+  // Approximate cost at $3/1M input tokens (Claude Sonnet pricing)
+  return (tokens / 1000000 * 3).toFixed(4)
+}
+
 export default function ScoreReveal({
   rawScore,
   optimizedScore,
@@ -68,6 +84,41 @@ export default function ScoreReveal({
           </div>
         </>
       )}
+
+      {/* Token Savings */}
+      {stats?.raw_content_chars > 0 && stats?.optimized_html_chars > 0 && (() => {
+        const rawTokens = charsToTokens(stats.raw_content_chars)
+        const optTokens = charsToTokens(stats.optimized_html_chars)
+        const savedTokens = rawTokens - optTokens
+        const savedPct = Math.round((1 - optTokens / rawTokens) * 100)
+        const rawCost = estimateCost(rawTokens)
+        const optCost = estimateCost(optTokens)
+        return (
+          <div className="token-savings">
+            <h3 className="results-sub-header" style={{ marginTop: 32, marginBottom: 16 }}>
+              Agent Token Savings
+            </h3>
+            <div className="token-savings-grid">
+              <div className="token-savings-card token-savings-raw">
+                <div className="token-savings-number">{formatTokens(rawTokens)}</div>
+                <div className="token-savings-sublabel">~${rawCost} per call</div>
+                <div className="token-savings-label">Raw Website Tokens</div>
+              </div>
+              <div className="token-savings-arrow">→</div>
+              <div className="token-savings-card token-savings-optimized">
+                <div className="token-savings-number">{formatTokens(optTokens)}</div>
+                <div className="token-savings-sublabel">~${optCost} per call</div>
+                <div className="token-savings-label">Optimized Tokens</div>
+              </div>
+              <div className="token-savings-card token-savings-saved">
+                <div className="token-savings-number">{savedPct > 0 ? `${savedPct}%` : `+${Math.abs(savedPct)}%`}</div>
+                <div className="token-savings-sublabel">{savedTokens > 0 ? formatTokens(savedTokens) : formatTokens(Math.abs(savedTokens))} tokens {savedTokens > 0 ? 'saved' : 'added'}</div>
+                <div className="token-savings-label">{savedTokens > 0 ? 'Savings per Request' : 'Size Increase'}</div>
+              </div>
+            </div>
+          </div>
+        )
+      })()}
 
       {/* Metrics row */}
       <div className="score-reveal-metrics">

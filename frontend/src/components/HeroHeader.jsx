@@ -27,7 +27,7 @@ function detectType(url) {
   return null
 }
 
-export default function HeroHeader({ phase, onIngest, onDemo, onReset, loading }) {
+export default function HeroHeader({ phase, onInjest, onDemo, onReset, loading }) {
   const [url, setUrl] = useState('')
   const [siteType, setSiteType] = useState('auto')
   const [maxIterations, setMaxIterations] = useState('3')
@@ -67,8 +67,8 @@ export default function HeroHeader({ phase, onIngest, onDemo, onReset, loading }
     }
   }
 
-  const handleIngest = () => {
-    if (url.trim()) onIngest(url.trim(), resolvedType, buildTripDetails(), parseInt(maxIterations) || 3, objective.trim() || null)
+  const handleInjest = () => {
+    if (url.trim()) onInjest(url.trim(), resolvedType, buildTripDetails(), parseInt(maxIterations) || 3, objective.trim() || null)
   }
 
   const handleReset = () => {
@@ -91,7 +91,7 @@ export default function HeroHeader({ phase, onIngest, onDemo, onReset, loading }
             placeholder="Drop any URL — e.g., airbnb.com/rooms/123, united.com"
             value={url}
             onChange={(e) => setUrl(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && handleIngest()}
+            onKeyDown={(e) => e.key === 'Enter' && handleInjest()}
             disabled={loading}
           />
           <select
@@ -105,10 +105,10 @@ export default function HeroHeader({ phase, onIngest, onDemo, onReset, loading }
           </select>
           <button
             className="btn btn-primary"
-            onClick={handleIngest}
+            onClick={handleInjest}
             disabled={loading || !url.trim()}
           >
-            Ingest
+            Injest
           </button>
           <button
             className="btn btn-demo"

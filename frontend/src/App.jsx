@@ -215,7 +215,7 @@ function App() {
     <div className="app">
       <HeroHeader
         phase={phase}
-        onIngest={handleIngest}
+        onInjest={handleIngest}
         onDemo={handleDemo}
         onReset={resetState}
         loading={loading}
