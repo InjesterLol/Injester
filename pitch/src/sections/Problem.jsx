@@ -260,7 +260,7 @@ function getLineClass(line) {
   if (line.includes('promo') || line.includes('upsell') || line.includes('partner') || line.includes('banner'))
     return 'line-noise'
   if (line.includes('form') || line.includes('input') || line.includes('booking') || line.includes('search'))
-    return 'line-content'
+    return 'line-content-highlight'
   if (line.includes('<!--'))
     return 'line-comment'
   return ''

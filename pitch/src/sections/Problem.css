@@ -156,13 +156,12 @@
 
 .line-content {
   white-space: pre;
-  color: var(--mid);
+  color: var(--ice-mid);
 }
 
-.line-noise { color: rgba(239, 68, 68, 0.55); }
-.line-content.line-content-highlight,
-.line-content.line-content { color: var(--gold); }
-.line-comment { color: var(--dim); font-style: italic; }
+.line-content.line-noise { color: rgba(239, 68, 68, 0.6); }
+.line-content.line-content-highlight { color: var(--gold); }
+.line-content.line-comment { color: var(--dim); font-style: italic; }
 
 /* Responsive */
 @media (max-width: 768px) {
