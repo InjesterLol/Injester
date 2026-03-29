@@ -71,7 +71,7 @@ export default function CTA() {
         {/* Footer */}
         <footer className="site-footer">
           <div className="footer-line">
-            Made in San Francisco &middot;{' '}
+            Made with ☕️ in San Francisco &middot;{' '}
             <a href="mailto:founders@injester.com">founders@injester.com</a>
           </div>
         </footer>
