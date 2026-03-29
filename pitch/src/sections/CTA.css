@@ -8,24 +8,25 @@
   margin: 0 auto;
 }
 
-.cta-content {
-  margin-bottom: 4rem;
-}
+.cta-content { margin-bottom: 4rem; }
 
 .cta-title {
-  font-family: var(--font-mono);
-  font-size: 2.5rem;
-  font-weight: 700;
-  color: var(--text-primary);
+  font-family: var(--display);
+  font-size: clamp(1.5rem, 3vw, 2.2rem);
+  font-weight: 600;
+  color: var(--ice);
   margin: 1rem 0 1rem;
-  line-height: 1.2;
+  line-height: 1.15;
+  letter-spacing: -0.02em;
 }
 
 .cta-desc {
-  font-size: 1.1rem;
-  color: var(--text-secondary);
+  font-family: var(--body);
+  font-size: clamp(0.95rem, 1.5vw, 1.05rem);
+  font-weight: 300;
+  color: var(--mid);
   margin-bottom: 2rem;
-  line-height: 1.6;
+  line-height: 1.7;
 }
 
 /* Waitlist form */
@@ -37,48 +38,43 @@
   gap: 0.75rem;
 }
 
-.form-row {
-  display: flex;
-  gap: 0.75rem;
-}
+.form-row { display: flex; gap: 0.75rem; }
 
 .form-input {
   flex: 1;
-  padding: 0.75rem 1rem;
-  background: var(--bg-card);
+  padding: 12px 14px;
+  background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: 6px;
-  color: var(--text-primary);
-  font-family: var(--font-sans);
-  font-size: 0.9rem;
+  border-radius: 3px;
+  color: var(--ice);
+  font-family: var(--body);
+  font-size: 14px;
+  font-weight: 300;
   outline: none;
   transition: border-color 0.3s;
 }
 
-.form-input::placeholder {
-  color: var(--text-muted);
-}
-
-.form-input:focus {
-  border-color: var(--accent-blue);
-}
+.form-input::placeholder { color: var(--dim); }
+.form-input:focus { border-color: var(--gold-border); }
 
 .form-button {
-  padding: 0.75rem 1.5rem;
-  background: var(--accent-green);
-  color: var(--bg-primary);
-  border: none;
-  border-radius: 6px;
-  font-family: var(--font-mono);
-  font-size: 0.9rem;
-  font-weight: 600;
+  padding: 14px 32px;
+  background: transparent;
+  color: var(--gold);
+  border: 1px solid var(--gold-border);
+  border-radius: 3px;
+  font-family: var(--body);
+  font-size: 12px;
+  font-weight: 400;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
   cursor: pointer;
-  transition: opacity 0.3s, transform 0.2s;
+  transition: all 0.3s ease;
 }
 
 .form-button:hover {
-  opacity: 0.9;
-  transform: translateY(-1px);
+  background: var(--gold-tint);
+  border-color: rgba(212, 162, 76, 0.45);
 }
 
 /* CTA cards */
@@ -95,39 +91,38 @@
   flex-direction: column;
   gap: 0.4rem;
   padding: 1.25rem;
-  background: var(--bg-card);
+  background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: 6px;
   text-decoration: none;
   color: inherit;
-  transition: border-color 0.3s, box-shadow 0.3s;
+  transition: border-color 0.3s;
   position: relative;
 }
 
-.cta-card:hover {
-  border-color: var(--accent-blue);
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
-}
+.cta-card:hover { border-color: var(--border-hover); }
 
 .card-badge {
-  font-size: 0.6rem;
-  font-weight: 600;
-  letter-spacing: 0.1em;
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 2px;
   padding: 0.15rem 0.4rem;
   border-radius: 3px;
   width: fit-content;
 }
 
 .card-title {
-  font-family: var(--font-mono);
+  font-family: var(--display);
   font-size: 1rem;
   font-weight: 600;
-  color: var(--text-primary);
+  color: var(--ice);
 }
 
 .card-desc {
-  font-size: 0.78rem;
-  color: var(--text-muted);
+  font-family: var(--body);
+  font-size: 13px;
+  font-weight: 300;
+  color: var(--dim);
   line-height: 1.5;
 }
 
@@ -135,14 +130,12 @@
   position: absolute;
   top: 1.25rem;
   right: 1.25rem;
-  color: var(--accent-blue);
+  color: var(--gold);
   font-size: 1rem;
   transition: transform 0.2s;
 }
 
-.cta-card:hover .card-arrow {
-  transform: translateX(3px);
-}
+.cta-card:hover .card-arrow { transform: translateX(3px); }
 
 /* Footer */
 .site-footer {
@@ -151,30 +144,21 @@
 }
 
 .footer-line {
-  font-size: 0.8rem;
-  color: var(--text-muted);
+  font-size: 12px;
+  color: var(--dim);
 }
 
 .footer-line a {
-  color: var(--accent-blue);
+  color: var(--ice-mid);
   text-decoration: none;
+  transition: color 0.3s;
 }
 
-.footer-line a:hover {
-  text-decoration: underline;
-}
+.footer-line a:hover { color: var(--ice); }
 
 /* Responsive */
 @media (max-width: 768px) {
-  .cta-title {
-    font-size: 1.75rem;
-  }
-
-  .cta-cards {
-    grid-template-columns: 1fr;
-  }
-
-  .form-row {
-    flex-direction: column;
-  }
+  .cta-title { font-size: 1.75rem; }
+  .cta-cards { grid-template-columns: 1fr; }
+  .form-row { flex-direction: column; }
 }
